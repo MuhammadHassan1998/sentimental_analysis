@@ -1,12 +1,13 @@
-from django.views.generic import ListView
+from django.views.generic import ListView, CreateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.http import Http404
 from django.views.generic import View
 from django.shortcuts import get_object_or_404, redirect
 from django.views.generic.edit import FormMixin
+from django.contrib.auth import login
 from .models import Post
-from .forms import PostForm, CommentForm
+from .forms import PostForm, CommentForm, RegisterForm
 
 
 class PostFeedView(LoginRequiredMixin, FormMixin, ListView):
@@ -66,3 +67,14 @@ class DeletePostView(LoginRequiredMixin, View):
 
         # Redirect to the homepage
         return redirect("home")
+
+
+class RegisterView(CreateView):
+    template_name = "registration/register.html"
+    form_class = RegisterForm
+    success_url = reverse_lazy("home")
+
+    def form_valid(self, form):
+        user = form.save()
+        login(self.request, user)
+        return super().form_valid(form)
