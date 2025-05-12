@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import PostFeedView, DeletePostView, RegisterView
+from .views import PostFeedView, DeletePostView, RegisterView, CustomLoginView
 
 urlpatterns = [
     path("", PostFeedView.as_view(), name="home"),

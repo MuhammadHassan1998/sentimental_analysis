@@ -1,5 +1,6 @@
 from django.views.generic import ListView, CreateView
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.views import LoginView
 from django.urls import reverse_lazy
 from django.http import Http404
 from django.views.generic import View
@@ -8,7 +9,7 @@ from django.views.generic.edit import FormMixin
 from django.contrib.auth import login
 from django.core.cache import cache
 from .models import Post
-from .forms import PostForm, CommentForm, RegisterForm
+from .forms import PostForm, CommentForm, RegisterForm, CustomLoginForm
 from utils.sentiment_model import predict_sentiment
 
 sentiment_map = {
@@ -121,3 +122,8 @@ class RegisterView(CreateView):
         user = form.save()
         login(self.request, user)
         return super().form_valid(form)
+
+
+class CustomLoginView(LoginView):
+    form_class = CustomLoginForm
+    template_name = "registration/login.html"
