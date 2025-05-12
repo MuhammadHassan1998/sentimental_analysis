@@ -28,6 +28,7 @@ class PostFeedView(LoginRequiredMixin, FormMixin, ListView):
     model = Post
     context_object_name = "posts"
     ordering = ["-created_at"]
+    paginate_by = 20
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
