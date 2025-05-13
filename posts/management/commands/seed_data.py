@@ -7,6 +7,8 @@ from django.contrib.auth.models import User
 from django.conf import settings
 from faker import Faker
 from PIL import Image
+import csv
+import requests
 
 from posts.models import Post, Comment
 from .comments import MEANINGFUL_COMMENTS
@@ -25,27 +27,7 @@ sentiment_map = {
 }
 
 
-IMAGE_DIR = "sample_images"
-
-
-def create_realistic_image():
-    available_images = [
-        f
-        for f in os.listdir(IMAGE_DIR)
-        if f.lower().endswith((".jpg", ".jpeg", ".png"))
-    ]
-    if not available_images:
-        raise Exception("No images found in sample_images/")
-
-    chosen_file = random.choice(available_images)
-    full_path = os.path.join(IMAGE_DIR, chosen_file)
-
-    with open(full_path, "rb") as f:
-        return SimpleUploadedFile(
-            name=chosen_file,
-            content=f.read(),
-            content_type="image/jpeg",
-        )
+CSV_PATH = "Appliances.csv"
 
 
 class Command(BaseCommand):
@@ -61,6 +43,7 @@ class Command(BaseCommand):
         post_count = kwargs["posts"]
         comment_count = kwargs["comments"]
 
+        # Creating Users
         self.stdout.write(self.style.SUCCESS(f"Creating {user_count} users..."))
         users = []
         for _ in range(user_count):
@@ -71,18 +54,59 @@ class Command(BaseCommand):
             )
             users.append(user)
 
-        self.stdout.write(self.style.SUCCESS(f"Creating {post_count} posts..."))
+        # Creating Posts
+        self.stdout.write(self.style.SUCCESS("Creating posts from CSV..."))
         posts = []
-        for _ in range(post_count):
-            user = random.choice(users)
-            image = create_realistic_image()
-            caption = fake.sentence(nb_words=10)
-            sentiment = random.choice(SENTIMENT_CHOICES)
-            post = Post.objects.create(
-                user=user, image=image, caption=caption, sentiment=sentiment
-            )
-            posts.append(post)
+        post_created = 0
+        try:
+            with open(CSV_PATH, newline="", encoding="utf-8") as csvfile:
+                reader = csv.DictReader(csvfile)
+                for row in reader:
+                    if post_created >= post_count:
+                        break
+                    image_url = row["image"].strip()
+                    caption = row["name"].strip()
+                    if not image_url:
+                        continue
+                    try:
+                        response = requests.get(image_url, timeout=10)
+                        if response.status_code != 200 or not response.content:
+                            continue
 
+                        img_name = os.path.basename(image_url.split("?")[0])
+                        image_file = SimpleUploadedFile(
+                            name=img_name,
+                            content=response.content,
+                            content_type="image/jpeg",
+                        )
+
+                        user = random.choice(users)
+                        sentiment = random.choice(SENTIMENT_CHOICES)
+                        post = Post.objects.create(
+                            user=user,
+                            image=image_file,
+                            caption=caption,
+                            sentiment=sentiment,
+                        )
+                        posts.append(post)
+                        post_created += 1
+                        if post_created % 10 == 0:
+                            self.stdout.write(
+                                self.style.SUCCESS(
+                                    f"Number of posts created : {post_created}"
+                                )
+                            )
+                    except Exception as e:
+                        self.stdout.write(
+                            self.style.WARNING(
+                                f"Failed to create post for {caption}: {e}"
+                            )
+                        )
+
+        except FileNotFoundError:
+            self.stdout.write(self.style.ERROR(f"CSV file not found at {CSV_PATH}"))
+
+        # Creating Comments
         self.stdout.write(self.style.SUCCESS(f"Creating {comment_count} comments..."))
         for _ in range(comment_count):
             post = random.choice(posts)
